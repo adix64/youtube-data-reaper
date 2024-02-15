@@ -1,6 +1,6 @@
-import tkinter as tk
 from tkinter.font import Font
 from tkinter import ttk
+import tkinter as tk
 import webbrowser
 import googleapiclient.discovery
 
@@ -24,9 +24,8 @@ def youtube_search():
     )
     response = request.execute()
 
-    for item in magic_table.get_children():
-        magic_table.delete(item)
-
+    # Step 1: Collect all video items into a list
+    video_items = []
     for item in response['items']:
         video_id = item['id']['videoId']
         video_title = item['snippet']['title']
@@ -37,15 +36,27 @@ def youtube_search():
         video_stats = youtube.videos().list(part="statistics", id=video_id).execute()['items'][0]['statistics']
         channel_stats = youtube.channels().list(part="statistics", id=channel_id).execute()['items'][0]['statistics']
 
-        magic_table.insert("", tk.END, values=(
+        # Append a tuple with all necessary information, including like count for sorting
+        video_items.append((
             video_title, 
-            video_stats.get('likeCount'), 
+            int(video_stats.get('likeCount', 0)),  # Convert likeCount to int, default to 0 if not present
             video_stats.get('viewCount'),
             channel_title,
             channel_stats.get('subscriberCount'),
             item['snippet']['description'],
             video_link  # Store video link in the last column, which will be hidden
         ))
+
+    # Step 2: Sort the list by like count in descending order
+    video_items.sort(key=lambda x: x[1], reverse=True)  # x[1] is the like count
+
+    # Clear existing items in the magic table
+    for item in magic_table.get_children():
+        magic_table.delete(item)
+
+    # Step 3: Iterate over the sorted list and insert each item into the magic table
+    for video_item in video_items:
+        magic_table.insert("", tk.END, values=video_item)
 
 # Setting up the Tkinter window
 root = tk.Tk()
