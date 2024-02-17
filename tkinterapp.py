@@ -40,9 +40,9 @@ def youtube_search():
         video_items.append((
             video_title, 
             int(video_stats.get('likeCount', 0)),  # Convert likeCount to int, default to 0 if not present
-            video_stats.get('viewCount'),
+            int(video_stats.get('viewCount', 0)),
             channel_title,
-            channel_stats.get('subscriberCount'),
+            int(channel_stats.get('subscriberCount', 0)),
             item['snippet']['description'],
             video_link  # Store video link in the last column, which will be hidden
         ))
@@ -66,6 +66,7 @@ root.title("YouTube Search App")
 search_label = ttk.Label(root, text="Search Query:")
 search_label.pack()
 search_entry = ttk.Entry(root, width=50)
+search_entry.insert(0, "Batman Bruce Timm Drawing")  # Set default search text
 search_entry.pack()
 
 # Results spinbox
@@ -90,6 +91,49 @@ for col in columns[:-1]:  # Exclude the URL column from headings
 
 # Hiding the URL column
 magic_table.column("URL", width=0, stretch=False, minwidth=0)
+
+
+def sort_column(column, reverse=False):
+    # Define reverse as a mutable object so its state can be maintained across function calls
+    reverse_dict = sort_column.reverse_dict
+
+    # Toggle the sorting direction
+    reverse_dict[column] = not reverse_dict.get(column, False)
+    reverse = reverse_dict[column]
+
+    # Determine if column data is numeric or not
+    try:
+        float(magic_table.set(magic_table.get_children()[0], column))
+        is_numeric = True
+    except ValueError:
+        is_numeric = False
+
+    # Extract data with conversion if necessary
+    data = [(magic_table.set(k, column), k) for k in magic_table.get_children('')]
+    if is_numeric:
+        data = [(float(a), b) for a, b in data]
+
+    # Sort and rearrange
+    data.sort(reverse=reverse)
+    for index, (_, k) in enumerate(data):
+        magic_table.move(k, '', index)
+
+    # Update headings to keep the sort order
+    for col in magic_table['columns']:
+        magic_table.heading(col, text=col,
+                            command=lambda c=col: sort_column(c, reverse_dict.get(col, False)))
+
+# Initialize a dictionary to keep track of sort orders for each column
+sort_column.reverse_dict = {}
+
+# Set up column headings with sort command
+for col in columns:
+    magic_table.heading(col, text=col, command=lambda c=col: sort_column(c))
+
+
+for col in columns[1:-1]:  # Skip the first and last column
+    magic_table.column(col, anchor='center')
+
 
 # Modified binding to pass the video link explicitly
 def on_item_click(event):
