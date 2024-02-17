@@ -3,6 +3,7 @@ from tkinter import ttk
 import tkinter as tk
 import webbrowser
 import googleapiclient.discovery
+from tkinter import PhotoImage, Label
 
 # Function to open video link in the browser, now explicitly receiving the video link as a parameter
 def open_video_link(video_link):
@@ -60,16 +61,61 @@ def youtube_search():
 
 # Setting up the Tkinter window
 root = tk.Tk()
+
+# Initialize the style object
+style = ttk.Style()
+style.theme_use('clam')  # Set the theme to 'clam'
+############################
+# Initialize the style object
+style = ttk.Style()
+style.theme_use('clam')  # Use the 'clam' theme as a base for customization
+
+# Define the color scheme
+dark_background = '#2D2D2D'  # Dark gray
+accent_color = '#116699'  # Soft purple
+text_color = '#FFFFFF'  # White
+secondary_color = '#434343'  # Slightly lighter gray
+
+root.configure(background=dark_background)
+
+# Define the fonts
+main_font = ('Helvetica', 10)
+accent_font = ('Helvetica', 12, 'bold')
+
+# Configure global appearance
+
+
+style.configure('.', background=dark_background, foreground=text_color, font=main_font, relief='flat')
+style.configure('TButton', font=accent_font, background=dark_background, foreground=text_color, borderwidth=1)
+style.configure('TLabel', font=main_font, background=dark_background, foreground=text_color)
+style.configure('TEntry', foreground=text_color, fieldbackground=dark_background, bordercolor=secondary_color)
+style.configure('TFrame', background=dark_background, fieldbackground=dark_background)
+style.configure('Treeview', background=dark_background, fieldbackground=dark_background, foreground=text_color)
+style.configure('PhotoImage', background=dark_background, fieldbackground=dark_background)
+style.configure('Treeview.Heading', background=secondary_color, foreground=text_color, font=('Helvetica', 10, 'bold'))
+
+
+############################
+
 root.geometry('1280x720')  # Set the resolution to 800x600
 root.state('zoomed')  # This will maximize the window
 root.title("YouTube Search App")
 
 # Search entry frame
 search_frame = tk.Frame(root)  # Create a frame to hold the entry and button
+search_frame.configure(background=dark_background)
 search_frame.pack()
 
-search_label = ttk.Label(search_frame, text="Search Query:")
-search_label.pack(side=tk.LEFT)
+png_image = PhotoImage(file="reaper128x128.png")
+
+
+# Create a label to display the image
+image_label = Label(search_frame, image=png_image)
+image_label.configure(background=dark_background)
+image_label.pack(side=tk.LEFT, padx=(0, 10))  # Adjust padding as needed
+
+#search_label = ttk.Label(search_frame, text="Search Query:")
+#search_label.pack(side=tk.LEFT)
 
 search_entry = ttk.Entry(search_frame, width=80)
 search_entry.insert(0, "Batman Bruce Timm Drawing")  # Set default search text
