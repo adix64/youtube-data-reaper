@@ -37,13 +37,20 @@ def youtube_search():
         video_stats = youtube.videos().list(part="statistics", id=video_id).execute()['items'][0]['statistics']
         channel_stats = youtube.channels().list(part="statistics", id=channel_id).execute()['items'][0]['statistics']
 
+        viewCount = int(video_stats.get('viewCount', 0))
+        likeCount = int(video_stats.get('likeCount', 0))  # Convert likeCount to int, default to 0 if not present
+        subscriberCount = int(channel_stats.get('subscriberCount', 0))
+        
+        lvRatio = likeCount / viewCount if (viewCount > 0) else -1
+        vsRatio = viewCount / subscriberCount if (subscriberCount > 0) else -1
         # Append a tuple with all necessary information, including like count for sorting
         video_items.append((
             video_title, 
-            int(video_stats.get('likeCount', 0)),  # Convert likeCount to int, default to 0 if not present
-            int(video_stats.get('viewCount', 0)),
+            viewCount,
+            likeCount,
             channel_title,
-            int(channel_stats.get('subscriberCount', 0)),
+            subscriberCount,
+            lvRatio, vsRatio,
             item['snippet']['description'],
             video_link  # Store video link in the last column, which will be hidden
         ))
@@ -126,15 +133,14 @@ search_button = ttk.Button(search_frame, text="Search", command=youtube_search)
 search_button.pack(side=tk.LEFT)
 
 # Magic Table setup
-columns = ("Video Name", "Likes", "Views", "Channel Name", "Subscribers", "Description", "URL")
-columnWidths = (("Video Name", 300), ("Likes", 80), ("Views", 80), ("Channel Name", 150), ("Subscribers", 80), ("Description", 150), ("URL", 100))
+columns = ("Video Name",  "Views", "Likes", "Channel Name", "Subscribers", "L/V", "V/S", "Description", "URL")
 magic_table = ttk.Treeview(root, columns=columns, show="headings")
 magic_table.pack(expand=True, fill="both")
 
 # Configuring column headings
-for (col, width) in columnWidths[:-1]:  # Exclude the URL column from headings
+for col in columns:  # Exclude the URL column from headings
     magic_table.heading(col, text=col)
-    magic_table.column(col, width=width)#Font().measure(col.title()))
+    magic_table.column(col, width=Font().measure(col.title()))
 
 # Hiding the URL column
 magic_table.column("URL", width=0, stretch=False, minwidth=0)
@@ -185,7 +191,7 @@ for col in columns[1:-1]:  # Skip the first and last column
 # Modified binding to pass the video link explicitly
 def on_item_click(event):
     selected_item = magic_table.selection()[0]  # Get selected item
-    video_link = magic_table.item(selected_item, 'values')[6]  # URL is the last value
+    video_link = magic_table.item(selected_item, 'values')[-1]  # URL is the last value
     open_video_link(video_link)
 
 magic_table.bind("<Double-1>", on_item_click)
