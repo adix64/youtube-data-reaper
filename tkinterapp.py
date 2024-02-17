@@ -14,7 +14,7 @@ def youtube_search():
     youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=api_key)
 
     query = search_entry.get()
-    max_results = int(results_spinbox.get())
+    max_results = 100
 
     request = youtube.search().list(
         part="snippet",
@@ -60,34 +60,35 @@ def youtube_search():
 
 # Setting up the Tkinter window
 root = tk.Tk()
+root.geometry('1280x720')  # Set the resolution to 800x600
+root.state('zoomed')  # This will maximize the window
 root.title("YouTube Search App")
 
-# Search entry
-search_label = ttk.Label(root, text="Search Query:")
-search_label.pack()
-search_entry = ttk.Entry(root, width=50)
+# Search entry frame
+search_frame = tk.Frame(root)  # Create a frame to hold the entry and button
+search_frame.pack()
+
+search_label = ttk.Label(search_frame, text="Search Query:")
+search_label.pack(side=tk.LEFT)
+
+search_entry = ttk.Entry(search_frame, width=80)
 search_entry.insert(0, "Batman Bruce Timm Drawing")  # Set default search text
-search_entry.pack()
+search_entry.pack(side=tk.LEFT)
 
-# Results spinbox
-results_label = ttk.Label(root, text="Number of Results:")
-results_label.pack()
-results_spinbox = ttk.Spinbox(root, from_=10, to=100, width=5, increment=1, value=32)
-results_spinbox.pack()
 
-# Search button
-search_button = ttk.Button(root, text="Search", command=youtube_search)
-search_button.pack()
+search_button = ttk.Button(search_frame, text="Search", command=youtube_search)
+search_button.pack(side=tk.LEFT)
 
 # Magic Table setup
-columns = ("Video Name", "Like Count", "View Count", "Channel Name", "Subscriber Count", "Description", "URL")
+columns = ("Video Name", "Likes", "Views", "Channel Name", "Subscribers", "Description", "URL")
+columnWidths = (("Video Name", 300), ("Likes", 80), ("Views", 80), ("Channel Name", 150), ("Subscribers", 80), ("Description", 150), ("URL", 100))
 magic_table = ttk.Treeview(root, columns=columns, show="headings")
 magic_table.pack(expand=True, fill="both")
 
 # Configuring column headings
-for col in columns[:-1]:  # Exclude the URL column from headings
+for (col, width) in columnWidths[:-1]:  # Exclude the URL column from headings
     magic_table.heading(col, text=col)
-    magic_table.column(col, width=Font().measure(col.title()))
+    magic_table.column(col, width=width)#Font().measure(col.title()))
 
 # Hiding the URL column
 magic_table.column("URL", width=0, stretch=False, minwidth=0)
