@@ -24,16 +24,28 @@ def youtube_search():
         type="video"
     )
     response = request.execute()
+    # Step 1: Collect all video IDs into a list
+    video_ids = [item['id']['videoId'] for item in response['items']]
 
+    # Step 2: Use the video IDs to make a videos().list() call to get details, including tags
+    video_details_request = youtube.videos().list(
+        part="snippet",
+        id=",".join(video_ids)  # Join the list of video IDs into a comma-separated string
+    )
+    video_details_response = video_details_request.execute()
+    print(video_details_response) 
     # Step 1: Collect all video items into a list
     video_items = []
-    for item in response['items']:
-        video_id = item['id']['videoId']
+    for item in video_details_response['items']:
+        video_id = item['id']
         video_title = item['snippet']['title']
         channel_id = item['snippet']['channelId']
         channel_title = item['snippet']['channelTitle']
         video_link = f"https://www.youtube.com/watch?v={video_id}"
-
+        tags = item['snippet']['tags'] if 'tags' in item['snippet'] else []
+        print(tags)
+        tags_string = ', '.join(tags)
+        
         video_stats = youtube.videos().list(part="statistics", id=video_id).execute()['items'][0]['statistics']
         channel_stats = youtube.channels().list(part="statistics", id=channel_id).execute()['items'][0]['statistics']
 
@@ -52,6 +64,7 @@ def youtube_search():
             subscriberCount,
             lvRatio, vsRatio,
             item['snippet']['description'],
+            tags_string,
             video_link  # Store video link in the last column, which will be hidden
         ))
 
@@ -133,7 +146,7 @@ search_button = ttk.Button(search_frame, text="Search", command=youtube_search)
 search_button.pack(side=tk.LEFT)
 
 # Magic Table setup
-columns = ("Video Name",  "Views", "Likes", "Channel Name", "Subscribers", "L/V", "V/S", "Description", "URL")
+columns = ("Video Name",  "Views", "Likes", "Channel Name", "Subscribers", "L/V", "V/S", "Description", "Tags", "URL")
 magic_table = ttk.Treeview(root, columns=columns, show="headings")
 magic_table.pack(expand=True, fill="both")
 
@@ -195,5 +208,45 @@ def on_item_click(event):
     open_video_link(video_link)
 
 magic_table.bind("<Double-1>", on_item_click)
+
+
+# Frame for displaying video details
+details_frame = ttk.Frame(root)
+details_frame.pack(fill='both', expand=True)
+
+# Labels for displaying video details
+thumbnail_label = Label(details_frame)
+thumbnail_label.pack(pady=(10, 0))
+
+video_name_label = ttk.Label(details_frame, text='', wraplength=300)
+video_name_label.pack()
+
+video_description_label = ttk.Label(details_frame, text='', wraplength=300)
+video_description_label.pack()
+
+video_views_label = ttk.Label(details_frame, text='')
+video_views_label.pack()
+
+video_likes_label = ttk.Label(details_frame, text='')
+video_likes_label.pack()
+
+video_tags_label = ttk.Label(details_frame, text='', wraplength=300)
+video_tags_label.pack()
+
+
+def on_treeview_select(event):
+    selected_item = magic_table.selection()[0]
+    item_values = magic_table.item(selected_item, 'values')
+    # Assuming the item values include the necessary video details in a specific order
+    # Update the labels within the details frame with the selected video's details
+    # This is a placeholder for how you might set the label texts; you'll need to adjust it based on your actual data structure
+    video_name_label.config(text=f'Name: {item_values[0]}')
+    video_description_label.config(text=f'Description: {item_values[7]}')
+    video_views_label.config(text=f'Views: {item_values[1]}')
+    video_likes_label.config(text=f'Likes: {item_values[2]}')
+    video_tags_label.config(text=f'Tags: {item_values[8]}')
+    # For the thumbnail, you'll need to fetch and display the image. This will require additional functionality not shown here.
+
+magic_table.bind('<<TreeviewSelect>>', on_treeview_select)
 
 root.mainloop()
