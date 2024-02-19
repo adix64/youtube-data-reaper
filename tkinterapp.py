@@ -148,7 +148,7 @@ search_button.pack(side=tk.LEFT)
 # Magic Table setup
 columns = ("Video Name",  "Views", "Likes", "Channel Name", "Subscribers", "L/V", "V/S", "Description", "Tags", "URL")
 magic_table = ttk.Treeview(root, columns=columns, show="headings")
-magic_table.pack(expand=True, fill="both")
+magic_table.pack(expand=True, fill="both", padx=30)
 
 # Configuring column headings
 for col in columns:  # Exclude the URL column from headings
@@ -208,8 +208,24 @@ def on_item_click(event):
     open_video_link(video_link)
 
 magic_table.bind("<Double-1>", on_item_click)
+def create_readonly_text(root, initial_text):
+    """Creates a Text widget that is selectable and copyable but not editable, with black background, white text, and 15px padding, without a scrollbar."""
+    text_widget = tk.Text(root, wrap="word", height=10, width=40, bg="black", fg="white")
+    text_widget.insert("1.0", initial_text)
+    text_widget.config(state="disabled")  # Make the text widget non-editable but selectable/copyable
+    text_widget.pack(side="left", fill="both", expand=True, padx=15, pady=15)
 
-
+    return text_widget
+    
+def set_text(text_widget, text):
+    """Clears the current content of the Text widget and inserts new text."""
+    text_widget.config(state="normal")  # Temporarily enable the widget to modify the text
+    text_widget.delete("1.0", "end")  # Clear existing text
+    text_widget.insert("1.0", text)  # Insert new text
+    text_widget.config(state="disabled")  # Disable the widget to prevent editing
+######################################################################################################
+######################################################################################################
+######################################################################################################
 # Frame for displaying video details
 details_frame = ttk.Frame(root)
 details_frame.pack(fill='both', expand=True)
@@ -218,11 +234,10 @@ details_frame.pack(fill='both', expand=True)
 thumbnail_label = Label(details_frame)
 thumbnail_label.pack(pady=(10, 0))
 
-video_name_label = ttk.Label(details_frame, text='', wraplength=300)
+video_name_label = ttk.Label(details_frame, text='', wraplength=300, width=1000)#, padx=30)
 video_name_label.pack()
 
-video_description_label = ttk.Label(details_frame, text='', wraplength=300)
-video_description_label.pack()
+video_description_text = create_readonly_text(root, "")
 
 video_views_label = ttk.Label(details_frame, text='')
 video_views_label.pack()
@@ -230,9 +245,10 @@ video_views_label.pack()
 video_likes_label = ttk.Label(details_frame, text='')
 video_likes_label.pack()
 
-video_tags_label = ttk.Label(details_frame, text='', wraplength=300)
-video_tags_label.pack()
+video_tags_text = create_readonly_text(root, "")
 
+######################################################################################################
+######################################################################################################
 
 def on_treeview_select(event):
     selected_item = magic_table.selection()[0]
@@ -241,10 +257,10 @@ def on_treeview_select(event):
     # Update the labels within the details frame with the selected video's details
     # This is a placeholder for how you might set the label texts; you'll need to adjust it based on your actual data structure
     video_name_label.config(text=f'Name: {item_values[0]}')
-    video_description_label.config(text=f'Description: {item_values[7]}')
+    set_text(video_description_text, f'Description: \n\n{item_values[7]}')
     video_views_label.config(text=f'Views: {item_values[1]}')
     video_likes_label.config(text=f'Likes: {item_values[2]}')
-    video_tags_label.config(text=f'Tags: {item_values[8]}')
+    set_text(video_tags_text, f'Tags: {item_values[8]}')
     # For the thumbnail, you'll need to fetch and display the image. This will require additional functionality not shown here.
 
 magic_table.bind('<<TreeviewSelect>>', on_treeview_select)
