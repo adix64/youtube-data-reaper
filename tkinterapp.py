@@ -7,7 +7,7 @@ def youtube_search():
     api_key = "AIzaSyA46ehaE6ov71md0No8ZfIjfWFB4z-X4h8"  # Replace with your API key
     youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=api_key)
     
-    request = youtube.search().list(part="snippet", maxResults=20, q=search_entry.get(), type="video")
+    request = youtube.search().list(part="snippet", maxResults=200, q=search_entry.get(), type="video")
     response = request.execute()
     # Collect all video IDs into a list, to make a videos().list() call to get details for all vids
     video_ids = [item['id']['videoId'] for item in response['items']]
@@ -27,15 +27,22 @@ def youtube_search():
         video_stats = youtube.videos().list(part="statistics", id=video_id).execute()['items'][0]['statistics']
         channel_stats = youtube.channels().list(part="statistics", id=channel_id).execute()['items'][0]['statistics']
 
+        commentCount = int(video_stats.get('commentCount', 0))
+        favoriteCount = int(video_stats.get('favoriteCount', 0))
         viewCount = int(video_stats.get('viewCount', 0))
         likeCount = int(video_stats.get('likeCount', 0))
         subscriberCount = int(channel_stats.get('subscriberCount', 0))
+        channelViewCount = int(channel_stats.get('viewCount', 0))
+        videoCount = int(channel_stats.get('videoCount', 0))
         
         lvRatio = likeCount / viewCount if (viewCount > 0) else -1
         vsRatio = viewCount / subscriberCount if (subscriberCount > 0) else -1
+        viewRatio = viewCount / channelViewCount if (channelViewCount > 0) else -1
         # Append a tuple with all relevant information
-        video_items.append(( video_title, viewCount, likeCount, channel_title, subscriberCount, lvRatio, vsRatio,
-            item['snippet']['description'], tags_string, thumbnailURL, video_link))
+        video_items.append((video_title, viewCount, likeCount, commentCount, favoriteCount, 
+                            channel_title, subscriberCount, channelViewCount, videoCount,
+                            lvRatio, vsRatio, viewRatio,
+                            item['snippet']['description'], tags_string, thumbnailURL, video_link))
 
     # Sort the list by likeCount in descending order
     video_items.sort(key=lambda x: x[2], reverse=True)
@@ -58,9 +65,9 @@ style.configure('TEntry', foreground=text_color, fieldbackground=dark_background
 style.configure('TFrame', background=dark_background, fieldbackground=dark_background)
 style.configure('Treeview', background=dark_background, fieldbackground=dark_background, foreground=text_color)
 style.configure('PhotoImage', background=dark_background, fieldbackground=dark_background)
-style.configure('Treeview.Heading', background=lighter_dark_gray, foreground=text_color, font=('Helvetica', 10, 'bold'))
+style.configure('Treeview.Heading', background=lighter_dark_gray, foreground=text_color, font=('Consolas', 10, 'bold'))
 
-root.geometry('800x1000')
+root.geometry('1000x900')
 root.title("YouTube Data Reaper")
 
 # Search entry frame
@@ -78,7 +85,8 @@ search_entry.insert(0, "Batman Bruce Timm Drawing")
 search_button = ttk.Button(search_frame, text="Search", command=youtube_search);    search_button.pack(side=tk.LEFT)
 
 # YT_entries_table setup
-columns = ("Video Name",  "Views", "Likes", "Channel Name", "Subscribers", "L/V", "V/S", "Description", "Tags", "ThumbnailURL", "URL")
+columns = ("Video 🎬",  "Views 👁️", "Likes👍", "Comms💬", "numFavorites", "Channel👤", 
+            "Subscribers👥", "TotalViews👀", "Videos🎥", "L/V", "V/S", "V/TV", "Description", "Tags", "ThumbnailURL", "URL")
 YT_entries_table = ttk.Treeview(root, columns=columns, show="headings", height=20)
 YT_entries_table.pack(expand=True, fill="both", padx=30)
 
@@ -87,7 +95,7 @@ for col in columns:  # Exclude the URL column from headings
     YT_entries_table.heading(col, text=col)
     YT_entries_table.column(col, width=Font().measure(col.title()))
 
-columnsToHide = ["Description", "Tags", "ThumbnailURL", "URL"]
+columnsToHide = ["Description", "Tags", "ThumbnailURL", "URL","numFavorites"]
 for col in columnsToHide: YT_entries_table.column(col, width=0, stretch=False, minwidth=0)
 
 def sort_column(column, reverse=False):
@@ -142,28 +150,38 @@ def set_text(text_widget, text):
     text_widget.config(state="disabled")
 
 ################################ Frame for displaying video details: ################################
+def make_and_pack_videoDetails_label(parent, font=("Segoe UI", 10, "normal"), color="white", pad = 0):
+    label = ttk.Label(parent, text='', width=100, font=font, foreground=color);    label.pack(anchor='nw', pady = (pad,0))
+    return label
+
 details_frame = ttk.Frame(root);    details_frame.pack(fill='both', expand=True, pady=(30, 0), padx=(30, 0))
 
 thumbnail_frame = ttk.Frame(details_frame);     thumbnail_frame.pack(side='left', anchor='nw', fill='y')
 thumbnail_label = ttk.Label(thumbnail_frame);       thumbnail_label.pack(anchor='nw')
 
-video_details_frame = ttk.Frame(details_frame);    video_details_frame.pack(side='left', anchor='nw', fill='both', expand=True, padx=(10, 0), pady=(10, 0))
-video_name_label = ttk.Label(video_details_frame, text='', width=50);   video_name_label.pack(anchor='nw')
-video_views_label = ttk.Label(video_details_frame, text='');    video_views_label.pack(anchor='nw')
-video_likes_label = ttk.Label(video_details_frame, text='');    video_likes_label.pack(anchor='nw')
+video_details_frame = ttk.Frame(details_frame);
+video_details_frame.pack(side='left', anchor='nw', fill='both', expand=True, padx=(10, 0), pady=(10, 0))
+video_name_label = make_and_pack_videoDetails_label(video_details_frame,("Helvetica", 12, "bold"), "#AAFFFF")
+video_stats_label = make_and_pack_videoDetails_label(video_details_frame)
+heuristic_stats_label = make_and_pack_videoDetails_label(video_details_frame)
+video_ChannelName_label = make_and_pack_videoDetails_label(video_details_frame,("Helvetica", 12, "bold"), "#FFAAFF", 30)
+channel_stats_label = make_and_pack_videoDetails_label(video_details_frame)
 
 video_description_text = create_readonly_text_widget(root, "")
 video_tags_text = create_readonly_text_widget(root, "")
+
 ######################################################################################################
 
 def on_treeview_select(event):
     selected_item = YT_entries_table.selection()[0]
     item_values = YT_entries_table.item(selected_item, 'values')
-    video_name_label.config(text=f'Name: {item_values[0]}')
-    set_text(video_description_text, f'Description: \n\n{item_values[7]}')
-    video_views_label.config(text=f'Views: {item_values[1]}')
-    video_likes_label.config(text=f'Likes: {item_values[2]}')
-    set_text(video_tags_text, f'Tags: {item_values[8]}')
+    video_name_label.config(text=f'🎬 {item_values[0]}')
+    video_stats_label.config(text=f'{item_values[1]} Views\t{item_values[2]} Likes \t {item_values[3]} Comments')
+    heuristic_stats_label.config(text=f'Likes/Views (L/V) = {float(item_values[9]):.3f}\tViews/Subs (V/S) = {float(item_values[10]):.3f}\t Views/TotalViews (V/TV) = {float(item_values[11]):.3f}')
+    video_ChannelName_label.config(text=f'👤 {item_values[5]}')
+    channel_stats_label.config(text=f'{item_values[6]} Subscribers\t\t{item_values[7]} Views\t\t{item_values[8]} Videos')
+    set_text(video_description_text, f'Description: \n\n{item_values[12]}')
+    set_text(video_tags_text, f'Tags: {item_values[13]}')
     
     thumbnail_url = item_values[-2]  # the last but one item in 'item_values' is the thumbnail URL
     try:
