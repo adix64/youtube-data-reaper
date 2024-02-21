@@ -1,7 +1,14 @@
 
-# YouTube Data Reaper README.md
+# YouTube Data Reaper
+<p align="center">
+  <img src="icons/reaper128x128.png" alt="YouTube Data Reaper Icon">
+</p>
 
-Ever got the feeling that YouTube never directly gives you the data you need to become a successful content creator? Me too. You're not alone. I developed "YouTube Data Reaper," a tool that digs deep into YouTube, providing detailed analytics like view counts, engagement metrics, and subscriber details for any channel or video. This isn't just numbers; it's actionable insights that empower you to tailor your content, connect with your audience more effectively, and navigate the path to YouTube success with confidence.
+Ever got the feeling that YouTube never directly gives you the data you need to become a successful content creator? You are NOT alone. This is "YouTube Data Reaper", the tool that digs deep into YouTube, providing detailed analytics like view and like counts, engagement metrics, and subscriber details for any channel or video. This isn't just numbers; it's actionable insights that empower you to tailor your content, connect with your audience more effectively, and navigate the path to YouTube success with confidence. It's free. It's open source. Contributions are welcome.
+
+<p align="center">
+  <img src="icons/screenshot.png" alt="YouTube Data Reaper Icon" width=25%>
+</p>
 
 ## Getting Started
 
