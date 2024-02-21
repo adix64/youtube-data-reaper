@@ -7,7 +7,7 @@ def youtube_search():
     api_key = "AIzaSyA46ehaE6ov71md0No8ZfIjfWFB4z-X4h8"  # Replace with your API key
     youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=api_key)
     
-    request = youtube.search().list(part="snippet", maxResults=200, q=search_entry.get(), type="video")
+    request = youtube.search().list(part="snippet", maxResults=50, q=search_entry.get(), type="video")
     response = request.execute()
     # Collect all video IDs into a list, to make a videos().list() call to get details for all vids
     video_ids = [item['id']['videoId'] for item in response['items']]
@@ -53,7 +53,7 @@ def youtube_search():
 
 # Setting up the Tkinter window
 root = tk.Tk()
-dark_background = '#2D2D2D'; text_color = '#FFFFFF'; lighter_dark_gray = '#434343'
+dark_background = '#2D2D2D'; darker_background = '#1D1D1D'; text_color = '#FFFFFF'; lighter_dark_gray = '#434343'
 root.configure(background=dark_background)
 
 style = ttk.Style()
@@ -63,7 +63,7 @@ style.configure('TButton', font=('Consolas', 10), background=dark_background, fo
 style.configure('TLabel', font=('Consolas', 10), background=dark_background, foreground=text_color)
 style.configure('TEntry', foreground=text_color, fieldbackground=dark_background, bordercolor=lighter_dark_gray)
 style.configure('TFrame', background=dark_background, fieldbackground=dark_background)
-style.configure('Treeview', background=dark_background, fieldbackground=dark_background, foreground=text_color)
+style.configure('Treeview', background=darker_background, fieldbackground=dark_background, foreground=text_color)
 style.configure('PhotoImage', background=dark_background, fieldbackground=dark_background)
 style.configure('Treeview.Heading', background=lighter_dark_gray, foreground=text_color, font=('Consolas', 10, 'bold'))
 
@@ -73,10 +73,12 @@ root.title("YouTube Data Reaper")
 # Search entry frame
 search_frame = tk.Frame(root)
 search_frame.configure(background=dark_background);     search_frame.pack()
-
+def open_YouTube_channel(event):
+    webbrowser.open("https://www.youtube.com/channel/UC4_YtlZ-MU4qAsIkMHCTvMQ")
 # Create a label to display the image
-png_image = PhotoImage(file="reaper128x128.png")
+png_image = PhotoImage(file="icons/reaper128x128.png")
 image_label = ttk.Label(search_frame, image=png_image)
+image_label.bind("<Button-1>", open_YouTube_channel)
 image_label.pack(side=tk.LEFT, padx=(0, 10))
 
 search_entry = ttk.Entry(search_frame, width=80);       search_entry.pack(side=tk.LEFT)
@@ -88,6 +90,7 @@ search_button = ttk.Button(search_frame, text="Search", command=youtube_search);
 columns = ("Video 🎬",  "Views 👁️", "Likes👍", "Comms💬", "numFavorites", "Channel👤", 
             "Subscribers👥", "TotalViews👀", "Videos🎥", "L/V", "V/S", "V/TV", "Description", "Tags", "ThumbnailURL", "URL")
 YT_entries_table = ttk.Treeview(root, columns=columns, show="headings", height=20)
+
 YT_entries_table.pack(expand=True, fill="both", padx=30)
 
 # Configuring column headings
@@ -97,6 +100,11 @@ for col in columns:  # Exclude the URL column from headings
 
 columnsToHide = ["Description", "Tags", "ThumbnailURL", "URL","numFavorites"]
 for col in columnsToHide: YT_entries_table.column(col, width=0, stretch=False, minwidth=0)
+
+visible_column_widths = (("Video 🎬",180),  ("Views 👁️",93), ("Likes👍",67), ("Comms💬",57), ("Channel👤", 124), 
+            ("Subscribers👥",99), ("TotalViews👀",101) , ("Videos🎥",68), ("L/V",41), ("V/S", 41), ("V/TV",41))
+for (colName, colWidth) in visible_column_widths:
+    YT_entries_table.column(colName, width=colWidth)
 
 def sort_column(column, reverse=False):
     # Define reverse as a mutable object so its state can be maintained across function calls
@@ -169,7 +177,6 @@ channel_stats_label = make_and_pack_videoDetails_label(video_details_frame)
 
 video_description_text = create_readonly_text_widget(root, "")
 video_tags_text = create_readonly_text_widget(root, "")
-
 ######################################################################################################
 
 def on_treeview_select(event):
@@ -188,6 +195,7 @@ def on_treeview_select(event):
         img = Image.open(BytesIO(requests.get(thumbnail_url).content)) #; img.thumbnail((128, 128), Image.ANTIALIAS)  # Resize to fit the label, if necessary
         photo = ImageTk.PhotoImage(img)
         thumbnail_label.config(image=photo)
+        thumbnail_label.bind("<Button-1>", on_table_item_clicked)
         thumbnail_label.image = photo  # Keep a reference
     except Exception as e:
         print(f"Failed to load thumbnail: {e}")
