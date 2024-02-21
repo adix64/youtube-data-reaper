@@ -1,0 +1,2 @@
+Replace all text in this file with your API key from https://console.cloud.google.com/
+Remember to enable YouTube Data API in your Project.

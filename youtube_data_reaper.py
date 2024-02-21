@@ -4,7 +4,7 @@ import webbrowser; import googleapiclient.discovery
 
 # Function to execute YouTube search and update the table
 def youtube_search():
-    api_key = "AIzaSyA46ehaE6ov71md0No8ZfIjfWFB4z-X4h8"  # Replace with your API key
+    with open('PASTE_YOUR_API_KEY_HERE.txt', 'r') as file: api_key = ''.join(file.read().split())
     youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=api_key)
     
     request = youtube.search().list(part="snippet", maxResults=50, q=search_entry.get(), type="video")
@@ -28,7 +28,6 @@ def youtube_search():
         channel_stats = youtube.channels().list(part="statistics", id=channel_id).execute()['items'][0]['statistics']
 
         commentCount = int(video_stats.get('commentCount', 0))
-        favoriteCount = int(video_stats.get('favoriteCount', 0))
         viewCount = int(video_stats.get('viewCount', 0))
         likeCount = int(video_stats.get('likeCount', 0))
         subscriberCount = int(channel_stats.get('subscriberCount', 0))
@@ -39,7 +38,7 @@ def youtube_search():
         vsRatio = viewCount / subscriberCount if (subscriberCount > 0) else -1
         viewRatio = viewCount / channelViewCount if (channelViewCount > 0) else -1
         # Append a tuple with all relevant information
-        video_items.append((video_title, viewCount, likeCount, commentCount, favoriteCount, 
+        video_items.append((video_title, viewCount, likeCount, commentCount, 
                             channel_title, subscriberCount, channelViewCount, videoCount,
                             lvRatio, vsRatio, viewRatio,
                             item['snippet']['description'], tags_string, thumbnailURL, video_link))
@@ -87,7 +86,7 @@ search_entry.insert(0, "Batman Bruce Timm Drawing")
 search_button = ttk.Button(search_frame, text="Search", command=youtube_search);    search_button.pack(side=tk.LEFT)
 
 # YT_entries_table setup
-columns = ("Video 🎬",  "Views 👁️", "Likes👍", "Comms💬", "numFavorites", "Channel👤", 
+columns = ("Video 🎬",  "Views 👁️", "Likes👍", "Comms💬", "Channel👤", 
             "Subscribers👥", "TotalViews👀", "Videos🎥", "L/V", "V/S", "V/TV", "Description", "Tags", "ThumbnailURL", "URL")
 YT_entries_table = ttk.Treeview(root, columns=columns, show="headings", height=20)
 
@@ -98,7 +97,7 @@ for col in columns:  # Exclude the URL column from headings
     YT_entries_table.heading(col, text=col)
     YT_entries_table.column(col, width=Font().measure(col.title()))
 
-columnsToHide = ["Description", "Tags", "ThumbnailURL", "URL","numFavorites"]
+columnsToHide = ["Description", "Tags", "ThumbnailURL", "URL"]
 for col in columnsToHide: YT_entries_table.column(col, width=0, stretch=False, minwidth=0)
 
 visible_column_widths = (("Video 🎬",180),  ("Views 👁️",93), ("Likes👍",67), ("Comms💬",57), ("Channel👤", 124), 
@@ -184,11 +183,11 @@ def on_treeview_select(event):
     item_values = YT_entries_table.item(selected_item, 'values')
     video_name_label.config(text=f'🎬 {item_values[0]}')
     video_stats_label.config(text=f'{item_values[1]} Views\t{item_values[2]} Likes \t {item_values[3]} Comments')
-    heuristic_stats_label.config(text=f'Likes/Views (L/V) = {float(item_values[9]):.3f}\tViews/Subs (V/S) = {float(item_values[10]):.3f}\t Views/TotalViews (V/TV) = {float(item_values[11]):.3f}')
-    video_ChannelName_label.config(text=f'👤 {item_values[5]}')
-    channel_stats_label.config(text=f'{item_values[6]} Subscribers\t\t{item_values[7]} Views\t\t{item_values[8]} Videos')
-    set_text(video_description_text, f'Description: \n\n{item_values[12]}')
-    set_text(video_tags_text, f'Tags: {item_values[13]}')
+    heuristic_stats_label.config(text=f'Likes/Views (L/V) = {float(item_values[8]):.3f}\tViews/Subs (V/S) = {float(item_values[9]):.3f}\t Views/TotalViews (V/TV) = {float(item_values[10]):.3f}')
+    video_ChannelName_label.config(text=f'👤 {item_values[4]}')
+    channel_stats_label.config(text=f'{item_values[5]} Subscribers\t\t{item_values[6]} Views\t\t{item_values[7]} Videos')
+    set_text(video_description_text, f'Description: \n\n{item_values[11]}')
+    set_text(video_tags_text, f'Tags: {item_values[12]}')
     
     thumbnail_url = item_values[-2]  # the last but one item in 'item_values' is the thumbnail URL
     try:
