@@ -7,21 +7,22 @@ def youtube_search():
     with open('PASTE_YOUR_API_KEY_HERE.txt', 'r') as file: api_key = ''.join(file.read().split())
     youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=api_key)
     
-    request = youtube.search().list(part="snippet", maxResults=50, q=search_entry.get(), type="video")
+    request = youtube.search().list(part="snippet", maxResults=50, q=search_entry.get(), type="video", order=selected_option.get())
     response = request.execute()
     # Collect all video IDs into a list, to make a videos().list() call to get details for all vids
     video_ids = [item['id']['videoId'] for item in response['items']]
-    video_details_request = youtube.videos().list(part="snippet,statistics", id=",".join(video_ids))
+    video_details_request = youtube.videos().list(part="snippet,statistics,contentDetails", id=",".join(video_ids))
     video_details_response = video_details_request.execute()
     video_items = []
     for item in video_details_response['items']:
         video_id = item['id']
         video_title = item['snippet']['title']
         channel_id = item['snippet']['channelId']
-        channel_title = item['snippet']['channelTitle']
+        duration = item['contentDetails']['duration']
         video_link = f"https://www.youtube.com/watch?v={video_id}"
         thumbnailURL = item['snippet']['thumbnails']['medium']['url'] # could be either 'default', 'medium', 'high', 'standard' or 'maxres'
         tags = item['snippet']['tags'] if 'tags' in item['snippet'] else []
+        channel_title = item['snippet']['channelTitle']
         tags_string = ', '.join(tags)
         
         video_stats = youtube.videos().list(part="statistics", id=video_id).execute()['items'][0]['statistics']
@@ -44,7 +45,7 @@ def youtube_search():
                             item['snippet']['description'], tags_string, thumbnailURL, video_link))
 
     # Sort the list by likeCount in descending order
-    video_items.sort(key=lambda x: x[2], reverse=True)
+    # video_items.sort(key=lambda x: x[2], reverse=True)
     
     # Clear existing items in the YT_entries_table and then insert the new entries:
     for item in YT_entries_table.get_children(): YT_entries_table.delete(item)
@@ -84,6 +85,14 @@ search_entry = ttk.Entry(search_frame, width=80);       search_entry.pack(side=t
 search_entry.insert(0, "Batman Bruce Timm Drawing")
 
 search_button = ttk.Button(search_frame, text="Search", command=youtube_search);    search_button.pack(side=tk.LEFT)
+
+order_label = tk.Label(search_frame, text="YT Search Order:", bg=dark_background,fg='white')
+order_label.pack(pady=(70,0), padx=50)
+options = ['viewCount', 'date', 'rating', 'relevance']
+selected_option = tk.StringVar(search_frame)
+selected_option.set(options[0])  # Set the default value
+option_menu = ttk.OptionMenu(search_frame, selected_option, options[0], *options)
+option_menu.pack(pady=0, padx=50)
 
 # YT_entries_table setup
 columns = ("Video 🎬",  "Views 👁️", "Likes👍", "Comms💬", "Channel👤", 
