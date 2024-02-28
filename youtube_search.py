@@ -34,7 +34,7 @@ def youtube_search(search_query, order_option):
     for item in video_details_response['items']:
         video_id = item['id']
         video_link = f"https://www.youtube.com/watch?v={video_id}"
-        thumbnail_url = item['snippet']['thumbnails']['medium']['url']
+        thumbnail_url = item['snippet']['thumbnails']['high']['url']
         tags = item['snippet'].get('tags', [])
         tags_string = ', '.join(tags)
         
