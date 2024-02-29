@@ -1,70 +1,54 @@
-import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, QLineEdit, QSizePolicy
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, QComboBox, QLineEdit, QSizePolicy
 from PyQt6.QtCore import Qt, QSize, pyqtSignal,QUrl
 from PyQt6.QtGui import QPixmap, QDesktopServices, QColor, QFont
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
-from datetime import datetime
-
-import isodate  # To parse ISO 8601 duration strings
+from datetime import datetime; import isodate
 import qdarkstyle
 from youtube_search import youtube_search
 
-
 class ClickableLabel(QLabel):
-    clicked = pyqtSignal()  # Signal to be emitted when the label is clicked
-
+    clicked = pyqtSignal()
     def __init__(self, parent=None):
         super(ClickableLabel, self).__init__(parent)
-
     def mousePressEvent(self, event):
-        self.clicked.emit()  # Emit the clicked signal
+        self.clicked.emit()
 
 class YouTubeDataReaper(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.video_items = []  # List to store VideoItem objects
+        self.netMgr = QNetworkAccessManager(); self.netMgr.finished.connect(self.onThumbnailDownloaded)
         self.setWindowTitle("YouTube Data Reaper")
-        self.setFixedSize(QSize(1000, 900))  # Set fixed size for the window
-
-
-        self.networkManager = QNetworkAccessManager()
-        self.networkManager.finished.connect(self.onThumbnailDownloaded)
-        # Central Widget
+        self.setFixedSize(QSize(1100, 900))
+# Central Widget
         self.centralWidget = QWidget(self)
         self.setCentralWidget(self.centralWidget)
-
-        # Main Layout
+# Main Layout
         self.layout = QVBoxLayout(self.centralWidget)
-
-        # Label
-        self.label = QLabel("Search:", self.centralWidget)
-        self.layout.addWidget(self.label)
-
-        # Search Area Layout (Horizontal)
-        self.searchAreaLayout = QHBoxLayout()  # Create a QHBoxLayout for the search area
-
-        # Image Label
+# Search Area Layout (Horizontal)
+        self.searchAreaLayout = QHBoxLayout()
+# Image Label
         self.imageLabel = ClickableLabel(self.centralWidget)
-        self.pixmap = QPixmap("icons/reaper128x128.png")  # Load the image
-        self.imageLabel.setPixmap(self.pixmap)  # Set the pixmap for the label
+        self.pixmap = QPixmap("icons/reaper128x128.png")
+        self.imageLabel.setPixmap(self.pixmap)
         self.imageLabel.clicked.connect(self.openUrl)
-        self.searchAreaLayout.addWidget(self.imageLabel)  # Add the image label to the horizontal layout
-
-        # Line Edit (Entry)
+        self.searchAreaLayout.addWidget(self.imageLabel)
+# Line Edit (Entry)
         self.searchEntry = QLineEdit(self.centralWidget)
         self.searchEntry.setPlaceholderText("Type your search query here")
-        self.searchAreaLayout.addWidget(self.searchEntry)  # Add to the horizontal layout
-
-        # Button
+        self.searchAreaLayout.addWidget(self.searchEntry)
+# Button
         self.searchButton = QPushButton("Search", self.centralWidget)
-        self.searchButton.clicked.connect(self.on_search_button_clicked)  # Connect signal to slot
-        self.searchAreaLayout.addWidget(self.searchButton)  # Add to the horizontal layout
-
-        # Add the search area layout to the main layout
+        self.searchButton.setFixedWidth(100); self.searchButton.setFixedHeight(30)
+        self.searchButton.clicked.connect(self.on_search_button_clicked)
+        self.searchAreaLayout.addWidget(self.searchButton)
+# Combo Box
+        self.optionBox = QComboBox()
+        self.optionBox.addItems(['viewCount', 'date', 'rating', 'relevance'])  # Add your options
+        self.searchAreaLayout.addWidget(self.optionBox)
+# Add the search area layout to the main layout
         self.layout.addLayout(self.searchAreaLayout)
-
-        self.video_items = []  # List to store VideoItem objects
-
-        # Table Widget
+# Table Widget
         self.tableWidget = QTableWidget(self.centralWidget)
         self.layout.addWidget(self.tableWidget)
         self.setupTable()
@@ -72,89 +56,56 @@ class YouTubeDataReaper(QMainWindow):
         
     def setupDetailedInfoSection(self):
         self.detailedInfoLayout = QHBoxLayout()
-
-        self.thumbnailLabel = ClickableLabel()
-        self.thumbnailLabel.setFixedSize(120, 90)  # Adjust size as needed
-        self.thumbnailLabel.clicked.connect(self.onThumbnailClicked)
+        self.thumbnailLabel = ClickableLabel(); self.thumbnailLabel.clicked.connect(self.onThumbnailClicked)
         self.detailedInfoLayout.addWidget(self.thumbnailLabel)
-
         self.videoInfoLayout = QVBoxLayout()
-
-        self.videoTitleLabel = QLabel("Video Title")
-        self.videoTitleLabel.setWordWrap(True)
-        self.videoInfoLayout.addWidget(self.videoTitleLabel)
-
+        self.videoTitleLabel = QLabel("Video Title"); self.videoTitleLabel.setWordWrap(True)
         self.statsLabel = QLabel("Views | Likes | Comments")
-        self.videoInfoLayout.addWidget(self.statsLabel)
-
         self.durationDateLabel = QLabel("Duration | Upload Date")
-        self.videoInfoLayout.addWidget(self.durationDateLabel)
-
-        self.channelNameLabel = QLabel("Channel Name")
-        self.channelNameLabel.setWordWrap(True)
-        self.videoInfoLayout.addWidget(self.channelNameLabel)
-
+        self.channelNameLabel = QLabel("Channel Name"); self.channelNameLabel.setWordWrap(True)
         self.channelStatsLabel = QLabel("Subscribers | Total Views | Videos")
-        self.videoInfoLayout.addWidget(self.channelStatsLabel)
-
+        for w in [self.videoTitleLabel, self.statsLabel, self.durationDateLabel, self.channelNameLabel, self.channelStatsLabel]:
+            self.videoInfoLayout.addWidget(w)
         self.detailedInfoLayout.addLayout(self.videoInfoLayout)
         self.layout.addLayout(self.detailedInfoLayout)
         
-    
-
     def openUrl(self):
-        QDesktopServices.openUrl(QUrl("https://www.youtube.com/@adix64"))  # Replace with your desired URL
+        QDesktopServices.openUrl(QUrl("https://www.youtube.com/@adix64"))
     
     def setupTable(self):
-        # Assuming your data includes these fields
-        self.tableWidget.setColumnCount(13)  # Number of columns you want to display
-        self.tableWidget.setHorizontalHeaderLabels(['Title', 'Views', 'Likes', 'Comments', 'Duration', 'Upload Date',
-                                                    'Channel', 'Subscribers', 'Channel Views', 'Video Count', 'LV Ratio',
-                                                    'VS Ratio', 'View Ratio'])
-        # self.tableWidget.setMaximumHeight(500)  # Limit maximum height
+        self.tableWidget.setColumnCount(13)        
+        self.tableWidget.setHorizontalHeaderLabels(
+            ['🎬 Video Title', '👁️Views', '👍Likes', '💬Comms', '⏲️Duration', '📅Uploaded',
+             '👤Channel', '👥Subscribers', '👀Channel👁️', '🎥Vids', '👍/👁️', '👁️/👥', '👁️/👀']) #📉
+        visible_column_widths = [180, 90, 90, 72,76, 80, 101, 95, 95, 60, 45, 45, 45]
+        for i, width in enumerate(visible_column_widths): self.tableWidget.setColumnWidth(i, width)
         self.tableWidget.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
-        self.sort_order = True  # Initial sort order
+        self.sort_order = True
         self.tableWidget.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.tableWidget.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.tableWidget.doubleClicked.connect(self.on_table_double_clicked)
         self.tableWidget.itemSelectionChanged.connect(self.updateDetailedInfo)
 
-    
     def on_table_double_clicked(self, index):
-        selected_video_item = self.video_items[index.row()]  # Access the VideoItem using the retrieved index
+        selected_video_item = self.video_items[index.row()]
         QDesktopServices.openUrl(QUrl(selected_video_item.video_link))
-
     
     def on_search_button_clicked(self):
-        self.video_items = youtube_search(self.searchEntry.text(), 'viewCount')
+        self.video_items = youtube_search(self.searchEntry.text(), self.optionBox.currentText())
         self.populate_table()
 
     def on_header_clicked(self, column_index):
-        if len(self.video_items) == 0:
-            return
-        # Mapping of column indexes to VideoItem attributes
-        column_mapping = {
-            0: 'video_title', 1: 'view_count', 2: 'like_count', 3: 'comment_count', 
-            4: 'duration', 5: 'upload_date', 6: 'channel_title', 7: 'subscriber_count', 
-            8: 'channel_view_count', 9: 'video_count', 10: 'lv_ratio', 11: 'vs_ratio', 
-            12: 'view_ratio'
-        }
-
-        # Get the attribute corresponding to the clicked column
-        sort_attribute = column_mapping.get(column_index)
-
+        if len(self.video_items) == 0: return
+        column_mapping = [  'video_title', 'view_count', 'like_count', 'comment_count', 
+                            'duration', 'upload_date', 'channel_title', 'subscriber_count', 
+                            'channel_view_count', 'video_count', 'lv_ratio', 'vs_ratio', 'view_ratio']
+        sort_attribute = column_mapping[column_index]
         if sort_attribute:
-            # Toggle sorting order
             self.sort_order = not self.sort_order
-
-            # Sort the list based on the attribute and order
             self.video_items.sort(key=lambda item: getattr(item, sort_attribute), reverse=not self.sort_order)
-
-            # Refresh the table with sorted items
-            self.populate_table()
+            self.populate_table() # Refresh the table with sorted items
 
     def onThumbnailClicked(self):
-        
         selectedRows = self.tableWidget.selectionModel().selectedRows()
         if selectedRows:
             selectedRow = selectedRows[0].row()
@@ -163,16 +114,15 @@ class YouTubeDataReaper(QMainWindow):
             
     def fetchThumbnail(self, url):
         request = QNetworkRequest(QUrl(url))
-        self.networkManager.get(request)
+        self.netMgr.get(request)
 
     def onThumbnailDownloaded(self, reply):
         if reply.error() == QNetworkReply.NetworkError.NoError:
             data = reply.readAll()
             pixmap = QPixmap()
             pixmap.loadFromData(data)
-            self.thumbnailLabel.setFixedWidth(480)
-            self.thumbnailLabel.setPixmap(pixmap.scaled(480, 360, Qt.AspectRatioMode.KeepAspectRatio))
-            self.thumbnailLabel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+            self.thumbnailLabel.setPixmap(pixmap.scaled(320, 180, Qt.AspectRatioMode.KeepAspectRatio))
+            self.thumbnailLabel.setFixedWidth(320); self.thumbnailLabel.setFixedHeight(180)
         reply.deleteLater()
 
     def populate_table(self):
@@ -198,62 +148,54 @@ class YouTubeDataReaper(QMainWindow):
         selectedRows = self.tableWidget.selectionModel().selectedRows()
         if selectedRows:
             selectedRow = selectedRows[0].row()
-            videoItem = self.video_items[selectedRow]
-
-            # Set thumbnail image
+            item = self.video_items[selectedRow]
+# Set thumbnail image
             pixmap = QPixmap()
-            pixmap.loadFromData(self.fetchThumbnail(videoItem.thumbnail_url))  # You need to implement fetchThumbnail
-            self.thumbnailLabel.setFixedWidth(480)
-            self.thumbnailLabel.setPixmap(pixmap.scaled(480, 360, Qt.AspectRatioMode.KeepAspectRatio))  # Adjust scaling as needed
-            self.thumbnailLabel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
-            
-            
-            # Set video title
-            self.videoTitleLabel.setText(videoItem.video_title)
-            self.videoTitleLabel.setFont(QFont("Arial", 14, QFont.Weight.Bold))  # Make title font larger and bold
-
-            # Set stats (views, likes, comments)
-            self.statsLabel.setText(f"{videoItem.view_count} Views\t{videoItem.like_count} Likes\t{videoItem.comment_count} Comments")
-            self.statsLabel.setFont(QFont("Arial", 10))  # Adjust font size as needed
-
-            # Set duration and upload date
-            self.durationDateLabel.setText(f"Duration: {videoItem.duration} - Uploaded: {videoItem.upload_date}")
-            self.durationDateLabel.setFont(QFont("Arial", 10))  # Adjust font size as needed
-
-            # Set channel name
-            self.channelNameLabel.setText(videoItem.channel_title)
-            self.channelNameLabel.setFont(QFont("Arial", 12, QFont.Weight.Bold))  # Make channel name font larger and bold
-
-            # Set channel stats (subscribers, total views, video count)
-            self.channelStatsLabel.setText(f"Subscribers: {videoItem.subscriber_count}, Total Views: {videoItem.channel_view_count}, Videos: {videoItem.video_count}")
-            self.channelStatsLabel.setFont(QFont("Arial", 10))  # Adjust font size as needed
-
+            pixmap.loadFromData(self.fetchThumbnail(item.thumbnail_url))
+# Set video title
+            self.videoTitleLabel.setText(item.video_title)
+            self.videoTitleLabel.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+# Set stats (views, likes, comments)
+            self.statsLabel.setText(f"{item.view_count} Views\t{item.like_count} Likes\t{item.comment_count} Comments")
+            self.statsLabel.setFont(QFont("Arial", 10))
+# Set duration and upload date
+            self.durationDateLabel.setText(f"Duration: {item.duration} - Uploaded: {item.upload_date}")
+            self.durationDateLabel.setFont(QFont("Arial", 10))
+# Set channel name
+            self.channelNameLabel.setText(item.channel_title)
+            self.channelNameLabel.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+# Set channel stats (subscribers, total views, video count)
+            self.channelStatsLabel.setText(
+                f"{item.subscriber_count}Subscribers\t{item.channel_view_count} Views\t{item.video_count} Videos")
+            self.channelStatsLabel.setFont(QFont("Arial", 10))
 
     def format_duration(self, duration_str):
         duration = isodate.parse_duration(duration_str)
         total_seconds = duration.total_seconds()
         hours, remainder = divmod(total_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
-        if hours > 0:
-            return f"{int(hours)}h{int(minutes)}min{int(seconds)}s"
-        elif minutes > 0:
-            return f"{int(minutes)}min{int(seconds)}s"
-        else:
-            return f"{int(seconds)}s"
+        if hours > 0: return f"{int(hours)}h{int(minutes)}min{int(seconds)}s"
+        elif minutes > 0: return f"{int(minutes)}min{int(seconds)}s"
+        else: return f"{int(seconds)}s"
 
     def color_gradient(self):
-        for column in range(1, 4):  # Assuming the first column is not numerical and you want to color columns 1-12
+#         self.tableWidget.setStyleSheet("""
+#             QTableWidget::item {
+#     color: black; /* Text color */
+#     text-shadow: 1px 1px 2px grey; /* Shadow effect */
+# }
+#         """)
+        for column in range(1, 4):
             max_value = max([float(self.tableWidget.item(row, column).text().replace(',', '')) for row in range(self.tableWidget.rowCount())])
             min_value = min([float(self.tableWidget.item(row, column).text().replace(',', '')) for row in range(self.tableWidget.rowCount())])
-
             for row in range(self.tableWidget.rowCount()):
                 value = float(self.tableWidget.item(row, column).text().replace(',', ''))
                 intensity = (value - min_value) / (max_value - min_value) if max_value != min_value else 1
                 color = QColor.fromRgbF(intensity, 0, 0, 1)  # Example gradient from red to blue
                 self.tableWidget.item(row, column).setBackground(color)
-# Create the application instance
+
 app = QApplication([])
-app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))  # Specify PyQt6 API
+app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
 window = YouTubeDataReaper()
 window.show()
 app.exec()

@@ -7,7 +7,7 @@ class VideoItem:
         self.like_count = like_count
         self.comment_count = comment_count
         self.duration = duration
-        self.upload_date = upload_date  # Added upload_date
+        self.upload_date = upload_date
         self.channel_title = channel_title
         self.subscriber_count = subscriber_count
         self.channel_view_count = channel_view_count
