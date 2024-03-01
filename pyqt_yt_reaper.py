@@ -179,20 +179,19 @@ class YouTubeDataReaper(QMainWindow):
         else: return f"{int(seconds)}s"
 
     def color_gradient(self):
-#         self.tableWidget.setStyleSheet("""
-#             QTableWidget::item {
-#     color: black; /* Text color */
-#     text-shadow: 1px 1px 2px grey; /* Shadow effect */
-# }
-#         """)
-        for column in range(1, 4):
+        colored_columns = [(1,QColor.fromRgbF(1,0,0,1)),(2,QColor.fromRgbF(0,.8,0,1)), (3,QColor.fromRgbF(0,0,1,1)),
+                           (7,QColor.fromRgbF(.85,.6,0,1)), (8,QColor.fromRgbF(.75,0,.75,1)), (9,QColor.fromRgbF(.5,.5,.5,1)),
+                           (10,QColor.fromRgbF(1,0,0,1)),(11,QColor.fromRgbF(0,.8,0,1)), (12,QColor.fromRgbF(0,0,1,1))]
+        for column, clr in colored_columns:
             max_value = max([float(self.tableWidget.item(row, column).text().replace(',', '')) for row in range(self.tableWidget.rowCount())])
             min_value = min([float(self.tableWidget.item(row, column).text().replace(',', '')) for row in range(self.tableWidget.rowCount())])
             for row in range(self.tableWidget.rowCount()):
                 value = float(self.tableWidget.item(row, column).text().replace(',', ''))
                 intensity = (value - min_value) / (max_value - min_value) if max_value != min_value else 1
-                color = QColor.fromRgbF(intensity, 0, 0, 1)  # Example gradient from red to blue
+                color = QColor.fromRgbF(clr.redF() * intensity, clr.greenF() * intensity, clr.blueF() * intensity, 1) # Example gradient from red to blue
                 self.tableWidget.item(row, column).setBackground(color)
+        for row in range(self.tableWidget.rowCount()):
+            self.tableWidget.item(row, 6).setBackground(QColor.fromRgbF(0,0,0,1))
 
 app = QApplication([])
 app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
