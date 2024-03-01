@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, QComboBox, QLineEdit, QSizePolicy
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QTextEdit, QHBoxLayout, QWidget, QLabel, QPushButton, QComboBox, QLineEdit, QSizePolicy
 from PyQt6.QtCore import Qt, QSize, pyqtSignal,QUrl
-from PyQt6.QtGui import QPixmap, QDesktopServices, QColor, QFont
+from PyQt6.QtGui import QPixmap, QDesktopServices, QColor, QFont, QIcon
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from datetime import datetime; import isodate
 import qdarkstyle
@@ -19,7 +19,8 @@ class YouTubeDataReaper(QMainWindow):
         self.video_items = []  # List to store VideoItem objects
         self.netMgr = QNetworkAccessManager(); self.netMgr.finished.connect(self.onThumbnailDownloaded)
         self.setWindowTitle("YouTube Data Reaper")
-        self.setFixedSize(QSize(1100, 900))
+        self.setFixedSize(QSize(1150, 1100))
+        self.setWindowIcon(QIcon('icons/reaper128x128.png'))
 # Central Widget
         self.centralWidget = QWidget(self)
         self.setCentralWidget(self.centralWidget)
@@ -54,6 +55,20 @@ class YouTubeDataReaper(QMainWindow):
         self.setupTable()
         self.setupDetailedInfoSection()
         
+        self.descriptionTextEdit = QTextEdit()
+        self.descriptionTextEdit.setReadOnly(True)
+        self.descriptionTextEdit.setFixedHeight(120)
+        
+        self.tagsTextEdit = QTextEdit()
+        self.tagsTextEdit.setReadOnly(True)
+        self.tagsTextEdit.setFixedHeight(120)
+        
+        self.textBoxLayout = QHBoxLayout()
+        self.textBoxLayout.addWidget(self.descriptionTextEdit)
+        self.textBoxLayout.addWidget(self.tagsTextEdit)
+        
+        self.layout.addLayout(self.textBoxLayout)
+        
     def setupDetailedInfoSection(self):
         self.detailedInfoLayout = QHBoxLayout()
         self.thumbnailLabel = ClickableLabel(); self.thumbnailLabel.clicked.connect(self.onThumbnailClicked)
@@ -80,7 +95,6 @@ class YouTubeDataReaper(QMainWindow):
         visible_column_widths = [180, 90, 90, 72,76, 80, 101, 95, 95, 60, 45, 45, 45]
         for i, width in enumerate(visible_column_widths): self.tableWidget.setColumnWidth(i, width)
         self.tableWidget.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
-        self.sort_order = True
         self.tableWidget.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.tableWidget.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.tableWidget.doubleClicked.connect(self.on_table_double_clicked)
@@ -101,8 +115,7 @@ class YouTubeDataReaper(QMainWindow):
                             'channel_view_count', 'video_count', 'lv_ratio', 'vs_ratio', 'view_ratio']
         sort_attribute = column_mapping[column_index]
         if sort_attribute:
-            self.sort_order = not self.sort_order
-            self.video_items.sort(key=lambda item: getattr(item, sort_attribute), reverse=not self.sort_order)
+            self.video_items.sort(key=lambda item: getattr(item, sort_attribute), reverse=True)
             self.populate_table() # Refresh the table with sorted items
 
     def onThumbnailClicked(self):
@@ -144,7 +157,7 @@ class YouTubeDataReaper(QMainWindow):
             self.tableWidget.setItem(row, 12, QTableWidgetItem(f"{video.view_ratio:.2f}"))
         self.color_gradient()
 
-    def updateDetailedInfo(self):
+    def updateDetailedInfo(self):    
         selectedRows = self.tableWidget.selectionModel().selectedRows()
         if selectedRows:
             selectedRow = selectedRows[0].row()
@@ -153,21 +166,25 @@ class YouTubeDataReaper(QMainWindow):
             pixmap = QPixmap()
             pixmap.loadFromData(self.fetchThumbnail(item.thumbnail_url))
 # Set video title
-            self.videoTitleLabel.setText(item.video_title)
+            self.videoTitleLabel.setText(f"{item.video_title}")
+            self.videoTitleLabel.setStyleSheet("color: rgb(100, 255, 255);")
             self.videoTitleLabel.setFont(QFont("Arial", 14, QFont.Weight.Bold))
 # Set stats (views, likes, comments)
-            self.statsLabel.setText(f"{item.view_count} Views\t{item.like_count} Likes\t{item.comment_count} Comments")
-            self.statsLabel.setFont(QFont("Arial", 10))
+            self.statsLabel.setText(f"👁️{item.view_count:,} Views\t\t👍{item.like_count:,} Likes\t\t💬{item.comment_count:,} Comments")
+            self.statsLabel.setFont(QFont("Arial", 11))
 # Set duration and upload date
-            self.durationDateLabel.setText(f"Duration: {item.duration} - Uploaded: {item.upload_date}")
-            self.durationDateLabel.setFont(QFont("Arial", 10))
+            self.durationDateLabel.setText(f"⏲️Duration: {self.format_duration(item.duration)} \t\t\t 📅Uploaded: {item.upload_date}\n\n")
+            self.durationDateLabel.setFont(QFont("Arial", 11))
 # Set channel name
-            self.channelNameLabel.setText(item.channel_title)
-            self.channelNameLabel.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+            self.channelNameLabel.setText(f"{item.channel_title}")
+            self.channelNameLabel.setStyleSheet("color: rgb(255, 150, 255);")
+            self.channelNameLabel.setFont(QFont("Arial", 14, QFont.Weight.Bold))
 # Set channel stats (subscribers, total views, video count)
             self.channelStatsLabel.setText(
-                f"{item.subscriber_count}Subscribers\t{item.channel_view_count} Views\t{item.video_count} Videos")
-            self.channelStatsLabel.setFont(QFont("Arial", 10))
+                f"👥{item.subscriber_count}Subscribers\t\t👀{item.channel_view_count:,} Views\t\t🎥{item.video_count:,} Videos")
+            self.channelStatsLabel.setFont(QFont("Arial", 11))
+            self.descriptionTextEdit.setText(item.description)
+            self.tagsTextEdit.setText(item.tags_string)
 
     def format_duration(self, duration_str):
         duration = isodate.parse_duration(duration_str)
@@ -179,9 +196,9 @@ class YouTubeDataReaper(QMainWindow):
         else: return f"{int(seconds)}s"
 
     def color_gradient(self):
-        colored_columns = [(1,QColor.fromRgbF(1,0,0,1)),(2,QColor.fromRgbF(0,.8,0,1)), (3,QColor.fromRgbF(0,0,1,1)),
-                           (7,QColor.fromRgbF(.85,.6,0,1)), (8,QColor.fromRgbF(.75,0,.75,1)), (9,QColor.fromRgbF(.5,.5,.5,1)),
-                           (10,QColor.fromRgbF(1,0,0,1)),(11,QColor.fromRgbF(0,.8,0,1)), (12,QColor.fromRgbF(0,0,1,1))]
+        colored_columns = [(1,QColor.fromRgbF(1,0,0,1)),(2,QColor.fromRgbF(0,.65,0,1)), (3,QColor.fromRgbF(0,0,1,1)),
+                           (7,QColor.fromRgbF(0,.6,.6,1)), (8,QColor.fromRgbF(.75,0,.75,1)), (9,QColor.fromRgbF(.5,.5,.5,1)),
+                           (10,QColor.fromRgbF(1,0,0,1)),(11,QColor.fromRgbF(0,.65,0,1)), (12,QColor.fromRgbF(0,0,1,1))]
         for column, clr in colored_columns:
             max_value = max([float(self.tableWidget.item(row, column).text().replace(',', '')) for row in range(self.tableWidget.rowCount())])
             min_value = min([float(self.tableWidget.item(row, column).text().replace(',', '')) for row in range(self.tableWidget.rowCount())])
@@ -192,6 +209,7 @@ class YouTubeDataReaper(QMainWindow):
                 self.tableWidget.item(row, column).setBackground(color)
         for row in range(self.tableWidget.rowCount()):
             self.tableWidget.item(row, 6).setBackground(QColor.fromRgbF(0,0,0,1))
+            self.tableWidget.item(row, 0).setBackground(QColor.fromRgbF(0,0,0,1))
 
 app = QApplication([])
 app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
