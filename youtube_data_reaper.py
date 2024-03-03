@@ -1,168 +1,245 @@
-import tkinter as tk; from tkinter.font import Font; from tkinter import ttk; from tkinter import PhotoImage
-import requests; from PIL import Image, ImageTk; from io import BytesIO
-import webbrowser; from youtube_search import youtube_search
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QTextEdit, QHBoxLayout, QWidget, QLabel, QPushButton, QComboBox, QLineEdit, QSizePolicy
+from PyQt6.QtCore import Qt, QSize, pyqtSignal,QUrl
+from PyQt6.QtGui import QPixmap, QDesktopServices, QColor, QFont, QIcon
+from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+from datetime import datetime; import isodate
+import qdarkstyle, re
+from youtube_search import youtube_search
 
-# Setting up the Tkinter window
-root = tk.Tk()
-dark_bg = '#2D2D2D'; darker_bg = '#1D1D1D'; text_color = '#FFFFFF'; dim_gray = '#434343'
-root.configure(background=dark_bg)
+class ClickableLabel(QLabel):
+    clicked = pyqtSignal()
+    def __init__(self, parent=None):
+        super(ClickableLabel, self).__init__(parent)
+    def mousePressEvent(self, event):
+        self.clicked.emit()
 
-style = ttk.Style()
-style.theme_use('clam')
-style.configure('.', background=dark_bg, foreground=text_color, font=('Consolas', 10), relief='flat')
-style.configure('TButton', font=('Consolas', 10), background=dark_bg, foreground=text_color, borderwidth=1)
-style.configure('TLabel', font=('Consolas', 10), background=dark_bg, foreground=text_color)
-style.configure('TEntry', foreground=text_color, fieldbackground=dark_bg, bordercolor=dim_gray)
-style.configure('TFrame', background=dark_bg, fieldbackground=dark_bg)
-style.configure('Treeview', background=darker_bg, fieldbackground=dark_bg, foreground=text_color)
-style.configure('PhotoImage', background=dark_bg, fieldbackground=dark_bg)
-style.configure('Treeview.Heading', background=dim_gray, foreground=text_color, font=('Consolas', 10, 'bold'))
-
-root.geometry('1000x900')
-root.title("YouTube Data Reaper")
-
-# Search entry frame
-search_frame = tk.Frame(root)
-search_frame.configure(background=dark_bg);     search_frame.pack()
-def open_YouTube_channel(event):
-    webbrowser.open("https://www.youtube.com/channel/UC4_YtlZ-MU4qAsIkMHCTvMQ")
-# Create a label to display the image
-png_image = PhotoImage(file="icons/reaper128x128.png")
-image_label = ttk.Label(search_frame, image=png_image)
-image_label.bind("<Button-1>", open_YouTube_channel)
-image_label.pack(side=tk.LEFT, padx=(0, 10))
-
-search_entry = ttk.Entry(search_frame, width=80);       search_entry.pack(side=tk.LEFT)
-search_entry.insert(0, "Batman Bruce Timm Drawing")
-
-def youtube_search_callback():
-    video_items = youtube_search(search_entry.get(), selected_option.get())
-    for item in YT_entries_table.get_children(): YT_entries_table.delete(item)
-    for video_item in video_items: YT_entries_table.insert("", tk.END, values=video_item)
-
-search_button = ttk.Button(search_frame, text="Search", command=youtube_search_callback);    search_button.pack(side=tk.LEFT)
-
-order_label = tk.Label(search_frame, text="YT Search Order:", bg=dark_bg,fg='white')
-order_label.pack(pady=(70,0), padx=50)
-options = ['viewCount', 'date', 'rating', 'relevance']
-selected_option = tk.StringVar(search_frame)
-selected_option.set(options[0])
-option_menu = ttk.OptionMenu(search_frame, selected_option, options[0], *options)
-option_menu.pack(pady=0, padx=50)
-
-# YT_entries_table setup
-columns = ("Video",  "Views", "Likes", "Comms", "Channel", 
-            "Subscribers", "TotalViews", "Videos", "L/V", "V/S", "V/TV", "Description", "Tags", "ThumbnailURL", "URL")
-YT_entries_table = ttk.Treeview(root, columns=columns, show="headings", height=20)
-
-YT_entries_table.pack(expand=True, fill="both", padx=30)
-
-# Configuring column headings
-for col in columns:  # Exclude the URL column from headings
-    YT_entries_table.heading(col, text=col)
-    YT_entries_table.column(col, width=Font().measure(col.title()))
-
-columnsToHide = ["Description", "Tags", "ThumbnailURL", "URL"]
-for col in columnsToHide: YT_entries_table.column(col, width=0, stretch=False, minwidth=0)
-
-visible_column_widths = (("Video",180),  ("Views",93), ("Likes",67), ("Comms",57), ("Channel", 124), 
-            ("Subscribers",99), ("TotalViews",101) , ("Videos",68), ("L/V",41), ("V/S", 41), ("V/TV",41))
-for (colName, colWidth) in visible_column_widths:
-    YT_entries_table.column(colName, width=colWidth)
-
-def sort_column(column, reverse=False):
-    # Define reverse as a mutable object so its state can be maintained across function calls
-    reverse_dict = sort_column.reverse_dict
-    # Toggle the sorting direction
-    reverse = reverse_dict[column] = not reverse_dict.get(column, False)
-    # Determine if column data is numeric or not
-    try:
-        float(YT_entries_table.set(YT_entries_table.get_children()[0], column))
-        is_numeric = True
-    except ValueError:
-        is_numeric = False
-    # Extract data with conversion if necessary
-    data = [(YT_entries_table.set(k, column), k) for k in YT_entries_table.get_children('')]
-    if is_numeric:
-        data = [(float(a), b) for a, b in data]
-    # Sort and rearrange
-    data.sort(reverse=reverse)
-    for index, (_, k) in enumerate(data):
-        YT_entries_table.move(k, '', index)
-    # Update headings to keep the sort order
-    for col in YT_entries_table['columns']:
-        YT_entries_table.heading(col, text=col, command=lambda c=col: sort_column(c, reverse_dict.get(col, False)))
-
-# Initialize a dictionary to keep track of sort orders for each column
-sort_column.reverse_dict = {}
-
-# Set up column headings with sort command
-for col in columns: YT_entries_table.heading(col, text=col, command=lambda c=col: sort_column(c))
-for col in columns[1:-1]: YT_entries_table.column(col, anchor='center')
-
-def on_table_item_clicked(event):
-    selected_item = YT_entries_table.selection()[0]
-    webbrowser.open(YT_entries_table.item(selected_item, 'values')[-1]) # video URL
-
-YT_entries_table.bind("<Double-1>", on_table_item_clicked)
-
-def create_readonly_text_widget(root, initial_text):
-    text_widget = tk.Text(root, wrap="word", height=10, width=40, bg="#222222", fg="white")
-    text_widget.insert("1.0", initial_text)
-    text_widget.config(state="disabled")  # Make the text widget non-editable but selectable/copyable
-    text_widget.pack(side="left", fill='both', expand=True, padx=15, pady=15)
-    return text_widget
+class YouTubeDataReaper(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.video_items = []  # List to store VideoItem objects
+        self.netMgr = QNetworkAccessManager(); self.netMgr.finished.connect(self.onThumbnailDownloaded)
+        self.setWindowTitle("YouTube Data Reaper")
+        self.setFixedSize(QSize(1150, 950))
+        self.setWindowIcon(QIcon('icons/reaper128x128.png'))
+# Central Widget
+        self.centralWidget = QWidget(self)
+        self.setCentralWidget(self.centralWidget)
+# Main Layout
+        self.layout = QVBoxLayout(self.centralWidget)
+# Search Area Layout (Horizontal)
+        self.searchAreaLayout = QHBoxLayout()
+# Image Label
+        self.imageLabel = ClickableLabel(self.centralWidget)
+        self.pixmap = QPixmap("icons/reaper128x128.png")
+        self.imageLabel.setPixmap(self.pixmap)
+        self.imageLabel.clicked.connect(self.openUrl)
+        self.searchAreaLayout.addWidget(self.imageLabel)
+# Line Edit (Entry)
+        self.searchEntry = QLineEdit(self.centralWidget)
+        self.searchEntry.setPlaceholderText("Type your search query here")
+        self.searchAreaLayout.addWidget(self.searchEntry)
+# Button
+        self.searchButton = QPushButton("Search", self.centralWidget)
+        self.searchButton.setFixedWidth(100); self.searchButton.setFixedHeight(30)
+        self.searchButton.clicked.connect(self.on_search_button_clicked)
+        self.searchAreaLayout.addWidget(self.searchButton)
+# Combo Box
+        self.optionBox = QComboBox()
+        self.optionBox.addItems(['viewCount', 'date', 'rating', 'relevance'])  # Add your options
+        self.searchAreaLayout.addWidget(self.optionBox)
+# Add the search area layout to the main layout
+        self.layout.addLayout(self.searchAreaLayout)
+# Table Widget
+        self.tableWidget = QTableWidget(self.centralWidget)
+        self.layout.addWidget(self.tableWidget)
+        self.setupTable()
+        self.setupDetailedInfoSection()
+        
+        self.descriptionTextEdit = QTextEdit()
+        self.descriptionTextEdit.setReadOnly(True)
+        self.descriptionTextEdit.setFixedHeight(120)
+        
+        self.tagsTextEdit = QTextEdit()
+        self.tagsTextEdit.setReadOnly(True)
+        self.tagsTextEdit.setFixedHeight(120)
+        
+        self.textBoxLayout = QHBoxLayout()
+        self.textBoxLayout.addWidget(self.descriptionTextEdit)
+        self.textBoxLayout.addWidget(self.tagsTextEdit)
+        
+        self.layout.addLayout(self.textBoxLayout)
+        
+    def setupDetailedInfoSection(self):
+        self.detailedInfoLayout = QHBoxLayout()
+        self.thumbnailLabel = ClickableLabel(); self.thumbnailLabel.clicked.connect(self.onThumbnailClicked)
+        self.detailedInfoLayout.addWidget(self.thumbnailLabel)
+        self.videoInfoLayout = QVBoxLayout()
+        self.videoTitleLabel = QLabel("Video Title"); self.videoTitleLabel.setWordWrap(True)
+        self.statsLabel = QLabel("Views | Likes | Comments")
+        self.durationDateLabel = QLabel("Duration | Upload Date")
+        self.channelNameLabel = QLabel("Channel Name"); self.channelNameLabel.setWordWrap(True)
+        self.channelStatsLabel = QLabel("Subscribers | Total Views | Videos")
+        for w in [self.videoTitleLabel, self.statsLabel, self.durationDateLabel, self.channelNameLabel, self.channelStatsLabel]:
+            self.videoInfoLayout.addWidget(w)
+        self.detailedInfoLayout.addLayout(self.videoInfoLayout)
+        self.layout.addLayout(self.detailedInfoLayout)
+        
+    def openUrl(self):
+        QDesktopServices.openUrl(QUrl("https://www.youtube.com/@adix64"))
     
-def set_text(text_widget, text):
-    text_widget.config(state="normal")
-    text_widget.delete("1.0", "end")
-    text_widget.insert("1.0", text)
-    text_widget.config(state="disabled")
+    def setupTable(self):
+        self.tableWidget.setColumnCount(13)        
+        self.tableWidget.setHorizontalHeaderLabels(
+            ['🎬 Video Title', '👁️Views', '👍Likes', '💬Comms', '⏲️Duration', '📅Uploaded',
+             '👤Channel', '👥Subscribers', '👀Channel👁️', '🎥Vids', '👍/👁️', '👁️/👥', '👁️/👀']) #📉
+        visible_column_widths = [180, 90, 90, 72,76, 80, 101, 95, 95, 60, 45, 45, 45]
+        for i, width in enumerate(visible_column_widths): self.tableWidget.setColumnWidth(i, width)
+        self.tableWidget.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
+        self.tableWidget.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.tableWidget.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.tableWidget.doubleClicked.connect(self.on_table_double_clicked)
+        self.tableWidget.itemSelectionChanged.connect(self.updateDetailedInfo)
 
-################################ Frame for displaying video details: ################################
-def create_videoDetailsLabel(parent, font=("Segoe UI", 10, "normal"), color="white", pad = 0):
-    label = ttk.Label(parent, text='', width=100, font=font, foreground=color);    label.pack(anchor='nw', pady = (pad,0))
-    return label
-
-details_frame = ttk.Frame(root);    details_frame.pack(fill='both', expand=True, pady=(30, 0), padx=(30, 0))
-
-thumbnail_frame = ttk.Frame(details_frame);     thumbnail_frame.pack(side='left', anchor='nw', fill='y')
-thumbnail_label = ttk.Label(thumbnail_frame);       thumbnail_label.pack(anchor='nw')
-
-video_details_frame = ttk.Frame(details_frame);
-video_details_frame.pack(side='left', anchor='nw', fill='both', expand=True, padx=(10, 0), pady=(10, 0))
-video_name_label = create_videoDetailsLabel(video_details_frame,("Helvetica", 12, "bold"), "#AAFFFF")
-video_stats_label = create_videoDetailsLabel(video_details_frame)
-heuristic_stats_label = create_videoDetailsLabel(video_details_frame)
-video_ChannelName_label = create_videoDetailsLabel(video_details_frame,("Helvetica", 12, "bold"), "#FFAAFF", 30)
-channel_stats_label = create_videoDetailsLabel(video_details_frame)
-
-video_description_text = create_readonly_text_widget(root, "")
-video_tags_text = create_readonly_text_widget(root, "")
-
-######################################################
-
-def on_treeview_select(event):
-    selected_item = YT_entries_table.selection()[0]
-    item_values = YT_entries_table.item(selected_item, 'values')
-    video_name_label.config(text=f'🎬 {item_values[0]}')
-    video_stats_label.config(text=f'{item_values[1]} Views\t{item_values[2]} Likes \t {item_values[3]} Comments')
-    heuristic_stats_label.config(text=f'Likes/Views (L/V) = {float(item_values[8]):.3f}\tViews/Subs (V/S) = {float(item_values[9]):.3f}\t Views/TotalViews (V/TV) = {float(item_values[10]):.3f}')
-    video_ChannelName_label.config(text=f'👤 {item_values[4]}')
-    channel_stats_label.config(text=f'{item_values[5]} Subscribers\t\t{item_values[6]} Views\t\t{item_values[7]} Videos')
-    set_text(video_description_text, f'Description: \n\n{item_values[11]}')
-    set_text(video_tags_text, f'Tags: {item_values[12]}')
+    def on_table_double_clicked(self, index):
+        selected_video_item = self.video_items[index.row()]
+        QDesktopServices.openUrl(QUrl(selected_video_item.video_link))
     
-    thumbnail_url = item_values[-2]
-    try:
-        img = Image.open(BytesIO(requests.get(thumbnail_url).content)) #; img.thumbnail((128, 128), Image.ANTIALIAS)  # Resize to fit the label, if necessary
-        photo = ImageTk.PhotoImage(img)
-        thumbnail_label.config(image=photo)
-        thumbnail_label.bind("<Button-1>", on_table_item_clicked)
-        thumbnail_label.image = photo  # Keep a reference
-    except Exception as e:
-        print(f"Failed to load thumbnail: {e}")
+    def on_search_button_clicked(self):
+        self.video_items = youtube_search(self.searchEntry.text(), self.optionBox.currentText())
+        self.populate_table()
 
-YT_entries_table.bind('<<TreeviewSelect>>', on_treeview_select)
+    def on_header_clicked(self, column_index):
+        if len(self.video_items) == 0: return
 
-root.mainloop()
+        column_mapping = ['video_title', 'view_count', 'like_count', 'comment_count', 
+                        'duration', 'upload_date', 'channel_title', 'subscriber_count', 
+                        'channel_view_count', 'video_count', 'lv_ratio', 'vs_ratio', 'view_ratio']
+        sort_attribute = column_mapping[column_index]
+
+        if sort_attribute:
+            # Special handling for sorting by duration in ISO 8601 format
+            if sort_attribute == 'duration':
+                self.video_items.sort(key=lambda item: self.duration_to_seconds(getattr(item, sort_attribute)), reverse=True)
+            else:
+                self.video_items.sort(key=lambda item: getattr(item, sort_attribute), reverse=True)
+            
+            self.populate_table()  # Refresh the table with sorted items
+
+    def duration_to_seconds(self, duration_str):
+        """
+        Converts an ISO 8601 duration string to total seconds.
+        Example: 'PT1H2M10S' -> 3730 seconds
+        """
+        hours = minutes = seconds = 0
+
+        # Extract hours, minutes, and seconds using regular expressions
+        if 'H' in duration_str:
+            hours = int(re.search(r'(\d+)H', duration_str).group(1))
+        if 'M' in duration_str:
+            minutes = int(re.search(r'(\d+)M', duration_str).group(1))
+        if 'S' in duration_str:
+            seconds = int(re.search(r'(\d+)S', duration_str).group(1))
+
+        return hours * 3600 + minutes * 60 + seconds
+
+
+    def onThumbnailClicked(self):
+        selectedRows = self.tableWidget.selectionModel().selectedRows()
+        if selectedRows:
+            selectedRow = selectedRows[0].row()
+            videoItem = self.video_items[selectedRow]
+            QDesktopServices.openUrl(QUrl(videoItem.video_link))
+            
+    def fetchThumbnail(self, url):
+        request = QNetworkRequest(QUrl(url))
+        self.netMgr.get(request)
+
+    def onThumbnailDownloaded(self, reply):
+        if reply.error() == QNetworkReply.NetworkError.NoError:
+            data = reply.readAll()
+            pixmap = QPixmap()
+            pixmap.loadFromData(data)
+            self.thumbnailLabel.setPixmap(pixmap.scaled(320, 180, Qt.AspectRatioMode.KeepAspectRatio))
+            self.thumbnailLabel.setFixedWidth(320); self.thumbnailLabel.setFixedHeight(180)
+        reply.deleteLater()
+
+    def populate_table(self):
+        self.tableWidget.clearContents()
+        self.tableWidget.setRowCount(len(self.video_items))
+        for row, video in enumerate(self.video_items):
+            self.tableWidget.setItem(row, 0, QTableWidgetItem(video.video_title));
+            self.tableWidget.setItem(row, 1, QTableWidgetItem(f"{video.view_count:,}"))
+            self.tableWidget.setItem(row, 2, QTableWidgetItem(f"{video.like_count:,}"))
+            self.tableWidget.setItem(row, 3, QTableWidgetItem(f"{video.comment_count:,}"))
+            self.tableWidget.setItem(row, 4, QTableWidgetItem(self.format_duration(video.duration)))
+            self.tableWidget.setItem(row, 5, QTableWidgetItem(video.upload_date))#.strftime("%d %B %Y")))
+            self.tableWidget.setItem(row, 6, QTableWidgetItem(video.channel_title))
+            self.tableWidget.setItem(row, 7, QTableWidgetItem(f"{video.subscriber_count:,}"))
+            self.tableWidget.setItem(row, 8, QTableWidgetItem(f"{video.channel_view_count:,}"))
+            self.tableWidget.setItem(row, 9, QTableWidgetItem(f"{video.video_count:,}"))
+            self.tableWidget.setItem(row, 10, QTableWidgetItem(f"{video.lv_ratio:.2f}"))
+            self.tableWidget.setItem(row, 11, QTableWidgetItem(f"{video.vs_ratio:.2f}"))
+            self.tableWidget.setItem(row, 12, QTableWidgetItem(f"{video.view_ratio:.2f}"))
+        self.color_gradient()
+
+    def updateDetailedInfo(self):    
+        selectedRows = self.tableWidget.selectionModel().selectedRows()
+        if selectedRows:
+            selectedRow = selectedRows[0].row()
+            item = self.video_items[selectedRow]
+# Set thumbnail image
+            pixmap = QPixmap()
+            pixmap.loadFromData(self.fetchThumbnail(item.thumbnail_url))
+# Set video title
+            self.videoTitleLabel.setText(f"{item.video_title}")
+            self.videoTitleLabel.setStyleSheet("color: rgb(100, 255, 255);")
+            self.videoTitleLabel.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+# Set stats (views, likes, comments)
+            self.statsLabel.setText(f"👁️{item.view_count:,} Views\t\t👍{item.like_count:,} Likes\t\t💬{item.comment_count:,} Comments")
+            self.statsLabel.setFont(QFont("Arial", 11))
+# Set duration and upload date
+            self.durationDateLabel.setText(f"⏲️Duration: {self.format_duration(item.duration)} \t\t\t 📅Uploaded: {item.upload_date}\n\n")
+            self.durationDateLabel.setFont(QFont("Arial", 11))
+# Set channel name
+            self.channelNameLabel.setText(f"{item.channel_title}")
+            self.channelNameLabel.setStyleSheet("color: rgb(255, 150, 255);")
+            self.channelNameLabel.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+# Set channel stats (subscribers, total views, video count)
+            self.channelStatsLabel.setText(
+                f"👥{item.subscriber_count}Subscribers\t\t👀{item.channel_view_count:,} Views\t\t🎥{item.video_count:,} Videos")
+            self.channelStatsLabel.setFont(QFont("Arial", 11))
+            self.descriptionTextEdit.setText(item.description)
+            self.tagsTextEdit.setText(item.tags_string)
+
+    def format_duration(self, duration_str):
+        duration = isodate.parse_duration(duration_str)
+        total_seconds = duration.total_seconds()
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        if hours > 0: return f"{int(hours)}h{int(minutes)}min{int(seconds)}s"
+        elif minutes > 0: return f"{int(minutes)}min{int(seconds)}s"
+        else: return f"{int(seconds)}s"
+
+    def color_gradient(self):
+        if len(self.video_items) == 0:
+            return
+        colored_columns = [(1,QColor.fromRgbF(1,0,0,1)),(2,QColor.fromRgbF(0,.65,0,1)), (3,QColor.fromRgbF(0,0,1,1)),
+                           (7,QColor.fromRgbF(0,.6,.6,1)), (8,QColor.fromRgbF(.75,0,.75,1)), (9,QColor.fromRgbF(.5,.5,.5,1)),
+                           (10,QColor.fromRgbF(1,0,0,1)),(11,QColor.fromRgbF(0,.65,0,1)), (12,QColor.fromRgbF(0,0,1,1))]
+        for column, clr in colored_columns:
+            max_value = max([float(self.tableWidget.item(row, column).text().replace(',', '')) for row in range(self.tableWidget.rowCount())])
+            min_value = min([float(self.tableWidget.item(row, column).text().replace(',', '')) for row in range(self.tableWidget.rowCount())])
+            for row in range(self.tableWidget.rowCount()):
+                value = float(self.tableWidget.item(row, column).text().replace(',', ''))
+                intensity = (value - min_value) / (max_value - min_value) if max_value != min_value else 1
+                color = QColor.fromRgbF(clr.redF() * intensity, clr.greenF() * intensity, clr.blueF() * intensity, 1) # Example gradient from red to blue
+                self.tableWidget.item(row, column).setBackground(color)
+        for row in range(self.tableWidget.rowCount()):
+            self.tableWidget.item(row, 6).setBackground(QColor.fromRgbF(0,0,0,1))
+            self.tableWidget.item(row, 0).setBackground(QColor.fromRgbF(0,0,0,1))
+
+app = QApplication([])
+app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
+window = YouTubeDataReaper()
+window.show()
+app.exec()
