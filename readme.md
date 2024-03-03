@@ -20,7 +20,7 @@ Ever got the feeling that YouTube never directly gives you the data you need to 
 2. **Install Required Packages**
    Open your terminal or command prompt and run the following command to install necessary packages:
    ```sh
-   pip install requests Pillow google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
+   pip install requests Pillow google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2 PyQt6 qdarkstyle isodate
    ```
 
 ### Setting Up YouTube API Key

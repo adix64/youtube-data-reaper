@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt, QSize, pyqtSignal,QUrl
 from PyQt6.QtGui import QPixmap, QDesktopServices, QColor, QFont, QIcon
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from datetime import datetime; import isodate
-import qdarkstyle
+import qdarkstyle, re
 from youtube_search import youtube_search
 
 class ClickableLabel(QLabel):
@@ -19,7 +19,7 @@ class YouTubeDataReaper(QMainWindow):
         self.video_items = []  # List to store VideoItem objects
         self.netMgr = QNetworkAccessManager(); self.netMgr.finished.connect(self.onThumbnailDownloaded)
         self.setWindowTitle("YouTube Data Reaper")
-        self.setFixedSize(QSize(1150, 1100))
+        self.setFixedSize(QSize(1150, 950))
         self.setWindowIcon(QIcon('icons/reaper128x128.png'))
 # Central Widget
         self.centralWidget = QWidget(self)
@@ -110,13 +110,38 @@ class YouTubeDataReaper(QMainWindow):
 
     def on_header_clicked(self, column_index):
         if len(self.video_items) == 0: return
-        column_mapping = [  'video_title', 'view_count', 'like_count', 'comment_count', 
-                            'duration', 'upload_date', 'channel_title', 'subscriber_count', 
-                            'channel_view_count', 'video_count', 'lv_ratio', 'vs_ratio', 'view_ratio']
+
+        column_mapping = ['video_title', 'view_count', 'like_count', 'comment_count', 
+                        'duration', 'upload_date', 'channel_title', 'subscriber_count', 
+                        'channel_view_count', 'video_count', 'lv_ratio', 'vs_ratio', 'view_ratio']
         sort_attribute = column_mapping[column_index]
+
         if sort_attribute:
-            self.video_items.sort(key=lambda item: getattr(item, sort_attribute), reverse=True)
-            self.populate_table() # Refresh the table with sorted items
+            # Special handling for sorting by duration in ISO 8601 format
+            if sort_attribute == 'duration':
+                self.video_items.sort(key=lambda item: self.duration_to_seconds(getattr(item, sort_attribute)), reverse=True)
+            else:
+                self.video_items.sort(key=lambda item: getattr(item, sort_attribute), reverse=True)
+            
+            self.populate_table()  # Refresh the table with sorted items
+
+    def duration_to_seconds(self, duration_str):
+        """
+        Converts an ISO 8601 duration string to total seconds.
+        Example: 'PT1H2M10S' -> 3730 seconds
+        """
+        hours = minutes = seconds = 0
+
+        # Extract hours, minutes, and seconds using regular expressions
+        if 'H' in duration_str:
+            hours = int(re.search(r'(\d+)H', duration_str).group(1))
+        if 'M' in duration_str:
+            minutes = int(re.search(r'(\d+)M', duration_str).group(1))
+        if 'S' in duration_str:
+            seconds = int(re.search(r'(\d+)S', duration_str).group(1))
+
+        return hours * 3600 + minutes * 60 + seconds
+
 
     def onThumbnailClicked(self):
         selectedRows = self.tableWidget.selectionModel().selectedRows()
@@ -196,6 +221,8 @@ class YouTubeDataReaper(QMainWindow):
         else: return f"{int(seconds)}s"
 
     def color_gradient(self):
+        if len(self.video_items) == 0:
+            return
         colored_columns = [(1,QColor.fromRgbF(1,0,0,1)),(2,QColor.fromRgbF(0,.65,0,1)), (3,QColor.fromRgbF(0,0,1,1)),
                            (7,QColor.fromRgbF(0,.6,.6,1)), (8,QColor.fromRgbF(.75,0,.75,1)), (9,QColor.fromRgbF(.5,.5,.5,1)),
                            (10,QColor.fromRgbF(1,0,0,1)),(11,QColor.fromRgbF(0,.65,0,1)), (12,QColor.fromRgbF(0,0,1,1))]

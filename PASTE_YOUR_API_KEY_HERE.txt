@@ -1,1 +1,1 @@
-AIzaSyDLSJgksPJb8e7vRAEEo9X0_2FQlJ7xd9w
+Replace all text in this file with your Google Console API key!
